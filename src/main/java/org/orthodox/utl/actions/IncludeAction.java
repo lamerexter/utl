@@ -39,20 +39,31 @@ public class IncludeAction extends ActionBase {
 
     @Override
     public void doAction(TemplateBody body, ActionContext context) {
-        TemplateBody dynamicTemplateBody = context.parse(includeFromStream());
-        dynamicTemplateBody.writeTo(context.getOut());
+        Resource resourceToInclude = includeFromStream();
+        if (resourceToInclude != null) {
+            TemplateBody dynamicTemplateBody = context.parse(resourceToInclude);
+            dynamicTemplateBody.writeTo(context.getOut());
+        }
+
+        if (body != null) {
+            body.writeTo(context.getOut());
+        }
     }
 
     private Resource includeFromStream() {
-        Assert.isTrue(uri != null || file != null, "A URI or file template resource must be specified");
+        Assert.isTrue(uri != null
+                || file != null
+                || (uri == null && file == null), "A URI or file template resource must be specified or both must be null");
         if (uri != null) {
             Resource resource = uriResolver.resolve(uri);
             if (resource == null) {
                 throw new TemplateActionException("Unable to resolve resource from given URI ["+uri+"]");
             }
             return resource;
-        } else {
+        } else if (file != null){
             return new FileResource(file);
         }
+
+        return null;
     }
 }

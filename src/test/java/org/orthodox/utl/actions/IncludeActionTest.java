@@ -17,6 +17,22 @@ import static org.mockito.Mockito.mock;
 
 class IncludeActionTest {
     @Test
+    public void doAction_IncludeBodyContentUnconditionally() throws Exception {
+        // Given
+        final String TEMPLATE_CONTENT = "The template content";
+        StringWriter templateActionOutput = new StringWriter();
+        TemplateBody templateBody = new StaticTemplateBody(new StringResource(TEMPLATE_CONTENT));
+        ActionContext actionContext = new DefaultActionContext(templateActionOutput);
+        IncludeAction includeAction = new IncludeAction();
+
+        // When
+        includeAction.doAction(templateBody, actionContext);
+
+        // Then
+        assertThat(templateActionOutput.toString(), equalTo(TEMPLATE_CONTENT));
+    }
+
+    @Test
     public void doAction_IncludeStaticContentFromFile() throws Exception {
         File tempFile = File.createTempFile(TypeUtil.getBaseName(getClass()), ".txt");
         try {
