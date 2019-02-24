@@ -1,0 +1,288 @@
+options { 
+  IGNORE_CASE = true; 
+  DEBUG_TOKEN_MANAGER = false;
+} 
+
+PARSER_BEGIN(TemplateParser)
+
+package org.orthodox.utl.parser;
+
+import org.orthodox.utl.model.Attribute;
+import org.orthodox.utl.model.AttributeList;
+import org.orthodox.utl.model.Comment;
+import org.orthodox.utl.model.ElementSequence;
+import org.orthodox.utl.model.EndTag;
+import org.orthodox.utl.model.Newline;
+import org.orthodox.utl.model.Node;
+import org.orthodox.utl.model.Sized;
+import org.orthodox.utl.model.Tag;
+import org.orthodox.utl.model.Template;
+import org.orthodox.utl.model.TemplatePrinter;
+import org.orthodox.utl.model.Text;
+
+import java.io.OutputStreamWriter;
+
+
+public class TemplateParser {
+
+  private static String getTokenText(Token first, Token cur) {
+    Token t;
+    StringBuilder sb = new StringBuilder();
+
+    for (t=first; t != cur.next; t = t.next) {
+      if (t.specialToken != null) {
+        Token tt=t.specialToken;
+        while (tt.specialToken != null)
+          tt = tt.specialToken;
+        for (; tt != null; tt = tt.next)
+          sb.append(tt.image);
+      };
+      sb.append(t.image);
+    };
+    return sb.toString();
+  }
+
+  /** Runnable. */
+  public static void main(String[] args) throws ParseException {
+    TemplateParser parser = new TemplateParser(System.in, "UTF-8");
+    Template doc = parser.Template();
+    doc.accept(new TemplatePrinter(new OutputStreamWriter(System.out)));
+    System.exit(0);
+  }
+
+}
+
+PARSER_END(TemplateParser)
+
+
+<*> SKIP: {
+  "=\n" | "=\r\n" | "=\r"
+  {
+  System.err.println("Skipping");
+  }
+}
+
+<*> TOKEN :
+{
+  <#ALPHA_CHAR: ["a"-"z", "A"-"Z"] >
+| <#NUM_CHAR:   ["0"-"9"] >
+| <#ALPHANUM_CHAR: <ALPHA_CHAR> | <NUM_CHAR > >
+| <#IDENTIFIER_CHAR: <ALPHANUM_CHAR> | [ "_", "-", ".", ":" ] >
+| <#IDENTIFIER: <ALPHA_CHAR> (<IDENTIFIER_CHAR>)* >
+| <#QUOTED_STRING_NB: ( "'" ( ~["'", "\r", "\n"] )* "'" )
+                    | ( "\"" ( ~["\"", "\r", "\n"] )* "\"" ) >
+| <#QUOTED_STRING: ( "'" ( ~["'"] )* "'" ) | ( "\"" ( ~["\""] )* "\"" ) >
+| <#WHITESPACE: ( " " | "\t" | "\n" | "\r" ) >
+| <#NEWLINE:    ( "\r\n" | "\r" | "\n" ) >
+| <#QUOTE:      ( "'" | "\"" )>
+}
+
+
+<DEFAULT> TOKEN :
+{
+  <EOL:            ( " " | "\t" )* <NEWLINE> >
+| <TAG_START:      "<"       > : LexStartTag
+| <ENDTAG_START:   "</"      > : LexStartTag
+| <COMMENT_START:  "<!--"    > : LexComment
+| <DECL_START:     "<!"      > : LexDecl
+| <PCDATA:         ( ~["<", "\r", "\n"] )+ >
+}
+
+
+<LexStartTag> TOKEN :
+{
+  <TAG_NAME: <IDENTIFIER> > : LexInTag
+| <LST_ERROR: ~[]>          : DEFAULT
+}
+
+<LexInTag> SPECIAL_TOKEN :
+{
+  < (<WHITESPACE>)+ >
+}
+
+<LexInTag> TOKEN :
+{
+  <ATTR_NAME: <IDENTIFIER> >
+| <TAG_END: ">" >                       : DEFAULT
+| <TAG_SLASHEND: "/>" >                 : DEFAULT
+| <ATTR_EQ: "=" >                       : LexAttrVal
+| <IMPLICIT_TAG_END: "<">
+  {
+    Token t = new Token();
+    t.image       = "<";
+    t.kind        = TAG_START;
+    t.next        = matchedToken.next;
+    t.beginLine   = matchedToken.beginLine;
+    t.beginColumn = matchedToken.beginColumn;
+    t.endLine     = matchedToken.endLine;
+    t.endColumn   = matchedToken.endColumn;
+    matchedToken.next  = t;
+    matchedToken.kind  = TAG_END;
+    matchedToken.image = ">";
+  }                                     : LexStartTag
+| <LIT_ERROR: ~[]>
+}
+
+<LexAttrVal> SPECIAL_TOKEN :
+{
+  < <WHITESPACE> >
+}
+
+<LexAttrVal> TOKEN :
+{
+  <ATTR_VAL: <QUOTED_STRING>
+| ( ~[">", "\"", "'", " ", "\t", "\n", "\r"] )+ > : LexInTag
+| <LAV_ERROR: ~[]>
+}
+
+<LexComment> TOKEN :
+{
+  < COMMENT_END:  ("--" (" ")* ">" | "->") > : DEFAULT
+| < DASH:         "-" >
+| < COMMENT_EOL:  <NEWLINE> >
+| < COMMENT_WORD: ( (~[ "\n", "\r", "'", "\"", "-" ])+
+                    | <QUOTED_STRING_NB>
+                    | <QUOTE> ) >
+}
+
+<LexDecl> TOKEN :
+{
+  <DECL_ANY: ( <QUOTED_STRING_NB> | <QUOTE> | ~[ ">" ] )+ >
+| <DECL_END: ">" > : DEFAULT
+}
+
+/** Constructor. */
+Template Template() :
+{
+  ElementSequence s;
+}
+{
+  s=ElementSequence() <EOF>
+  { return new Template(s); }
+}
+
+/** @return a sequence of elements */
+ElementSequence ElementSequence() :
+{
+  ElementSequence s = new ElementSequence();
+  Node h;
+}
+{
+  ( h=Element() { s.addElement(h); } ) *
+  { return s; }
+}
+
+/** @return an element */
+Node Element() :
+{
+  Node e;
+  Token t;
+}
+{
+(
+    LOOKAHEAD(2)
+         e = Tag()        { return e; }
+  |      e = EndTag()     { return e; }
+  |      e = CommentTag() { return e; }
+  |      e = DeclTag()    { return e; }
+  | LOOKAHEAD(2)
+             <TAG_START> t=<LST_ERROR>
+                          { return new Text("<" + t.image); }
+  |   t = <PCDATA>        { return new Text(t.image); }
+  |   t = <EOL>           { return new Newline(t.image); }
+)
+}
+
+/** @return an attribute */
+Attribute Attribute() :
+{
+  Token t1, t2=null;
+}
+{
+  t1=<ATTR_NAME> [ <ATTR_EQ> t2=<ATTR_VAL> ]
+  { if (t2 == null)
+      return new Attribute(t1.image);
+    else
+      return new Attribute(t1.image, t2.image);
+  }
+}
+
+/** @return an AttributeList */
+AttributeList AttributeList() :
+{
+  AttributeList alist = new AttributeList();
+  Attribute a;
+}
+{
+  (a=Attribute() { alist.addAttribute(a); } )*
+  { return alist; }
+}
+
+/** @return a tag */
+Node Tag() :
+{
+  Token t, et;
+  AttributeList alist;
+  Token firstToken = getToken(1);
+}
+{
+  try {
+    <TAG_START> t=<TAG_NAME> alist=AttributeList()
+    ( et=<TAG_END> | et=<TAG_SLASHEND> )
+    {
+      Tag tag = new Tag(t.image, alist);
+      if (et.kind == TAG_SLASHEND) tag.setEmpty(true);
+      return tag;
+    }
+  }
+  catch (ParseException ex) {
+    token_source.SwitchTo(DEFAULT);
+    String s = getTokenText(firstToken, getNextToken());
+    return new Text(s);
+  }
+}
+
+/** @return the end of a tag */
+Node EndTag() :
+{
+  Token t;
+  Token firstToken = getToken(1);
+}
+{
+  try {
+    <ENDTAG_START> t=<TAG_NAME> <TAG_END>
+    { return new EndTag(t.image); }
+  }
+  catch (ParseException ex) {
+    token_source.SwitchTo(DEFAULT);
+    String s = getTokenText(firstToken, getNextToken());
+    return new Text(s);
+  }
+}
+
+/** @return the start of a comment tag */
+Comment CommentTag() :
+{
+  Token t;
+  StringBuilder s = new StringBuilder("--");
+}
+{
+  <COMMENT_START>
+  ( t=<DASH> { s.append(t.image); }
+    | t=<COMMENT_EOL>  { s.append(t.image); }
+    | t=<COMMENT_WORD> { s.append(t.image); } )*
+  (<EOF> | <COMMENT_END>)
+  { return new Comment(s.append("--").toString()); }
+}
+
+/** @return the start of a declaration */
+Comment DeclTag() :
+{
+  Token t;
+}
+{
+  <DECL_START> t=<DECL_ANY> <DECL_END>
+  {
+    return new Comment(t.image);
+  }
+}
