@@ -10,6 +10,21 @@ public abstract class ActionBase implements Action {
 
     @Override
     public void setParent(Action action) {
-        this.parent = parent;
+        this.parent = action;
     }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public <T extends Action> T findAncestorOfType(Action from, Class<T> ancestorType) {
+        if (from == null) return null;
+
+        from = from.getParent();
+        while (from != null) {
+            if (ancestorType.isAssignableFrom(from.getClass())) return (T)from;
+            from = from.getParent();
+        }
+
+        return null;
+    }
+
 }

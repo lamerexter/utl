@@ -1,7 +1,7 @@
 package org.orthodox.utl.actions;
 
 import org.beanplanet.core.io.resource.Resource;
-import org.beanplanet.core.io.resource.UriBasedResourceImpl;
+import org.beanplanet.core.io.resource.UriResource;
 
 import java.net.URI;
 
@@ -15,6 +15,6 @@ public class DefaultUriResolver implements UriResolver {
      */
     @Override
     public Resource resolve(URI uri) {
-        return new UriBasedResourceImpl(uri);
+        return new UriResource(uri);
     }
 }

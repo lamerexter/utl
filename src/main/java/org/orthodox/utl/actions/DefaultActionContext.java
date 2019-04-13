@@ -33,19 +33,23 @@ public class DefaultActionContext implements ActionContext {
     }
 
     @Override
-    public TemplateBody parse(Resource resource) {
+    public TemplateBody parse(Action actionContext, Resource resource) {
         try (InputStream resourceIs = resource.getInputStream()) {
             TemplateParser parser = new TemplateParser(resourceIs, "UTF-8");
             Template template = parser.Template();
 
-            return createTemplateBody(template);
+            return createTemplateBody(actionContext, template);
         } catch (IOException | ParseException ex) {
             throw new IoException(ex);
         }
     }
 
-    private TemplateBody createTemplateBody(Template template) {
+    private TemplateBody createTemplateBody(Action actionContext, Template template) {
         TemplateBodyBuilder builder = new TemplateBodyBuilder();
+        if (actionContext != null) {
+            builder.setEnclosingAction(actionContext);
+        }
+
         builder.visit(template);
         return builder.build();
     }

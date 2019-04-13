@@ -3,7 +3,6 @@ package org.orthodox.utl.model;
 import org.beanplanet.core.models.Builder;
 import org.orthodox.utl.actions.Action;
 import org.orthodox.utl.actions.ActionBuilder;
-import org.orthodox.utl.actions.IncludeAction;
 import org.orthodox.utl.actions.TemplateBody;
 
 import java.util.LinkedList;
@@ -11,6 +10,8 @@ import java.util.List;
 
 public class TemplateBodyBuilder implements Visitor, Builder<TemplateBody> {
     private List<TemplateBody> bodyElements = new LinkedList<>();
+
+    private Action enclosingAction;
 
     @Override
     public void visit(Tag t) {
@@ -26,7 +27,11 @@ public class TemplateBodyBuilder implements Visitor, Builder<TemplateBody> {
         // Lookup by tag ns ...
         ActionBuilder actionBuilder = new ActionBuilder();
         actionBuilder.withStartTag(t);
-        bodyElements.add(new TemplateActionHandler(actionBuilder.build()));
+        Action action = actionBuilder.build();
+        if (enclosingAction != null) {
+            action.setParent(enclosingAction);
+        }
+        bodyElements.add(new TemplateActionHandler(action));
     }
 
     private boolean isTemplateAction(Tag t) {
@@ -69,5 +74,9 @@ public class TemplateBodyBuilder implements Visitor, Builder<TemplateBody> {
     @Override
     public TemplateBody build() {
         return new CompositeTemplateBody(bodyElements);
+    }
+
+    public void setEnclosingAction(Action enclosingAction) {
+        this.enclosingAction = enclosingAction;
     }
 }

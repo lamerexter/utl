@@ -12,5 +12,9 @@ public interface ActionContext {
      */
     Writer getOut();
 
-    TemplateBody parse(Resource resource);
+    default TemplateBody parse(Resource resource) {
+        return parse(null, resource);
+    }
+
+    TemplateBody parse(Action actionContext, Resource resource);
 }

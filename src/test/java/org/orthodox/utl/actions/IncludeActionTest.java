@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.StringWriter;
+import java.net.URL;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
@@ -17,7 +18,7 @@ import static org.mockito.Mockito.mock;
 
 class IncludeActionTest {
     @Test
-    public void doAction_IncludeBodyContentUnconditionally() throws Exception {
+    public void doAction_IncludeStaticBodyContentUnconditionally() throws Exception {
         // Given
         final String TEMPLATE_CONTENT = "The template content";
         StringWriter templateActionOutput = new StringWriter();
@@ -30,6 +31,23 @@ class IncludeActionTest {
 
         // Then
         assertThat(templateActionOutput.toString(), equalTo(TEMPLATE_CONTENT));
+    }
+
+    @Test
+    public void doAction_IncludeDynamicBodyContentUnconditionally() throws Exception {
+        // Given
+        StringWriter templateActionOutput = new StringWriter();
+        ActionContext actionContext = new DefaultActionContext(templateActionOutput);
+        URL resource = getClass().getResource("include-subdir1/some-content.txt");
+        String templateStr = String.format("Prologue<utl:include uri='%s' />Epilogue", resource);
+        TemplateBody templateBody = actionContext.parse(new StringResource(templateStr));
+        IncludeAction includeAction = new IncludeAction();
+
+        // When
+        includeAction.doAction(templateBody, actionContext);
+
+        // Then
+        assertThat(templateActionOutput.toString(), equalTo("PrologueSome content line1\nSome content line2Epilogue"));
     }
 
     @Test
@@ -57,31 +75,24 @@ class IncludeActionTest {
     }
 
     @Test
-    public void doAction_IncludeStaticFromUri() throws Exception {
-        File tempFile = File.createTempFile(TypeUtil.getBaseName(getClass()), ".txt");
-        try {
-            // Given
-            StringWriter templateActionOutput = new StringWriter();
-            TemplateBody templateBody = mock(TemplateBody.class);
-            ActionContext actionContext = new DefaultActionContext(templateActionOutput);
-            IncludeAction includeAction = new JavaBean<>(new IncludeAction())
-                    .with("uri", tempFile.toURI())
-                    .getBean();
-            final String TEMPLATE_CONTENT = "The template content";
-            IoUtil.transferAndClose(new StringResource(TEMPLATE_CONTENT), new FileResource(tempFile));
+    public void doAction_IncludeStaticContentFromUri() throws Exception {
+        // Given
+        TemplateBody templateBody = mock(TemplateBody.class);
+        StringWriter templateActionOutput = new StringWriter();
+        ActionContext actionContext = new DefaultActionContext(templateActionOutput);
+        URL resource = getClass().getResource("include-subdir1/some-content.txt");
+        IncludeAction includeAction = new JavaBean<>(new IncludeAction())
+                .with("uri", resource.toURI())
+                .getBean();
+        // When
+        includeAction.doAction(templateBody, actionContext);
 
-            // When
-            includeAction.doAction(templateBody, actionContext);
-
-            // Then
-            assertThat(templateActionOutput.toString(), equalTo(TEMPLATE_CONTENT));
-        } finally {
-            FileUtil.deleteIgnoringErrors(tempFile);
-        }
+        // Then
+        assertThat(templateActionOutput.toString(), equalTo("Some content line1\nSome content line2"));
     }
 
     @Test
-    public void doAction_IncludeNestedDynamicContentFromFile() throws Exception {
+    public void doAction_IncludeNestedDynamicContentFromFilesAbsolutely() throws Exception {
         File outermostTemplateFile = File.createTempFile(TypeUtil.getBaseName(getClass()), ".txt");
         File innerTemplateFile = File.createTempFile(TypeUtil.getBaseName(getClass()), ".txt");
         File innermostTemplateFile = File.createTempFile(TypeUtil.getBaseName(getClass()), ".txt");
@@ -124,5 +135,68 @@ class IncludeActionTest {
             FileUtil.deleteIgnoringErrors(innerTemplateFile);
             FileUtil.deleteIgnoringErrors(innermostTemplateFile);
         }
+    }
+
+    @Test
+    public void doAction_IncludeNestedDynamicContentFromUrisAbsolutely() throws Exception {
+        File outermostTemplateFile = File.createTempFile(TypeUtil.getBaseName(getClass()), ".txt");
+        File innerTemplateFile = File.createTempFile(TypeUtil.getBaseName(getClass()), ".txt");
+        File innermostTemplateFile = File.createTempFile(TypeUtil.getBaseName(getClass()), ".txt");
+        try {
+            // Given
+            StringWriter templateActionOutput = new StringWriter();
+            TemplateBody templateBody = mock(TemplateBody.class);
+            ActionContext actionContext = new DefaultActionContext(templateActionOutput);
+            IncludeAction includeAction = new JavaBean<>(new IncludeAction())
+                    .with("file", outermostTemplateFile)
+                    .getBean();
+
+            IoUtil.transferAndClose(
+                    new StringResource(
+                            String.format(
+                                    "O1 file Content - prologue\n"+
+                                            "<utl:include uri='%s' />\n" +
+                                            "O1 file Content - epilogue\n",
+                                    innerTemplateFile.toURI().toURL())
+                    ),
+                    new FileResource(outermostTemplateFile));
+            IoUtil.transferAndClose(
+                    new StringResource(
+                            String.format(
+                                    "O2 file Content - prologue\n"+
+                                            "<utl:include uri='%s' />\n" +
+                                            "O2 file Content - epilogue\n",
+                                    innermostTemplateFile.toURI().toURL())
+                    ),
+                    new FileResource(innerTemplateFile));
+            IoUtil.transferAndClose(new StringResource("This is the innermost content"), new FileResource(innermostTemplateFile));
+
+            // When
+            includeAction.doAction(templateBody, actionContext);
+
+            // Then
+            assertThat(templateActionOutput.toString(), equalTo("O1 file Content - prologue\nO2 file Content - prologue\nThis is the innermost content\nO2 file Content - epilogue\n\nO1 file Content - epilogue\n"));
+        } finally {
+            FileUtil.deleteIgnoringErrors(outermostTemplateFile);
+            FileUtil.deleteIgnoringErrors(innerTemplateFile);
+            FileUtil.deleteIgnoringErrors(innermostTemplateFile);
+        }
+    }
+
+    @Test
+    public void doAction_IncludeNestedDynamicContentFromFilesRelatively() throws Exception {
+        // Given
+        TemplateBody templateBody = mock(TemplateBody.class);
+        StringWriter templateActionOutput = new StringWriter();
+        ActionContext actionContext = new DefaultActionContext(templateActionOutput);
+        URL resource = getClass().getResource("IncludeAction_relative.txt");
+        IncludeAction includeAction = new JavaBean<>(new IncludeAction())
+                .with("uri", resource.toURI())
+                .getBean();
+        // When
+        includeAction.doAction(templateBody, actionContext);
+
+        // Then
+        assertThat(templateActionOutput.toString(), equalTo("TopLevel-Prologue\nSome content line1\nSome content line2\nTopLevel-Epilogue\n"));
     }
 }

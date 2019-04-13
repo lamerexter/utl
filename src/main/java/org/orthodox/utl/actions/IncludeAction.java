@@ -2,6 +2,7 @@ package org.orthodox.utl.actions;
 
 import org.beanplanet.core.io.resource.FileResource;
 import org.beanplanet.core.io.resource.Resource;
+import org.beanplanet.core.io.resource.UriResource;
 import org.beanplanet.core.lang.Assert;
 
 import java.io.File;
@@ -41,7 +42,7 @@ public class IncludeAction extends ActionBase {
     public void doAction(TemplateBody body, ActionContext context) {
         Resource resourceToInclude = includeFromStream();
         if (resourceToInclude != null) {
-            TemplateBody dynamicTemplateBody = context.parse(resourceToInclude);
+            TemplateBody dynamicTemplateBody = context.parse(this, resourceToInclude);
             dynamicTemplateBody.writeTo(context.getOut());
         }
 
@@ -55,9 +56,26 @@ public class IncludeAction extends ActionBase {
                 || file != null
                 || (uri == null && file == null), "A URI or file template resource must be specified or both must be null");
         if (uri != null) {
-            Resource resource = uriResolver.resolve(uri);
+            if (uri.isAbsolute()) {
+                Resource resource = uriResolver.resolve(uri);
+                if (resource == null) {
+                    throw new TemplateActionException("Unable to resolve resource from given URI ["+uri+"]");
+                }
+                return resource;
+            }
+
+            //----------------------------------------------------------------------------------------------------------
+            // Begin resolution of the relative resource uri through ancestors.
+            //----------------------------------------------------------------------------------------------------------
+            IncludeAction fromAction = this;
+            Resource resource = new UriResource(uri);
+            while ((fromAction = findAncestorOfType(fromAction, IncludeAction.class)) != null) {
+                Resource ancestorResource = fromAction.getFile() != null ? new FileResource(fromAction.getFile()) : new UriResource(fromAction.getUri());
+                resource = ancestorResource.resolve(resource.getPath());
+            }
+
             if (resource == null) {
-                throw new TemplateActionException("Unable to resolve resource from given URI ["+uri+"]");
+                throw new TemplateActionException("Unable to resolve relative resource from given URI ["+uri+"] through ancestry.");
             }
             return resource;
         } else if (file != null){

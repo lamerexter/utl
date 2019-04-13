@@ -24,4 +24,6 @@ public interface Action {
      * @param action the action which encloses this action, which may be null if the action has no parent.
      */
     void setParent(Action action);
+
+    <T extends Action> T findAncestorOfType(Action from, Class<T> ancestorType);
 }
