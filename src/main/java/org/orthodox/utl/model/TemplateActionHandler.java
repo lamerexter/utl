@@ -1,6 +1,7 @@
 package org.orthodox.utl.model;
 
 import org.orthodox.utl.actions.Action;
+import org.orthodox.utl.actions.ActionContext;
 import org.orthodox.utl.actions.DefaultActionContext;
 import org.orthodox.utl.actions.TemplateBody;
 
@@ -14,7 +15,7 @@ public class TemplateActionHandler implements TemplateBody {
     }
 
     @Override
-    public void writeTo(Writer writer) {
-        action.doAction(null, new DefaultActionContext(writer));
+    public void writeTo(ActionContext context) {
+        action.doAction(null, context);
     }
 }

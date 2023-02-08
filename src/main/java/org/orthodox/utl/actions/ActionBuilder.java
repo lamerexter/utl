@@ -6,9 +6,6 @@ import org.orthodox.utl.model.ElementSequence;
 import org.orthodox.utl.model.EndTag;
 import org.orthodox.utl.model.Tag;
 
-import java.io.File;
-import java.net.URI;
-
 public class ActionBuilder implements Builder<Action> {
     private Tag startTag;
     private ElementSequence childElements;
@@ -23,8 +20,7 @@ public class ActionBuilder implements Builder<Action> {
         // Should lookup up from registry here ...
 
         return new JavaBean<>(new IncludeAction())
-                .with("file", startTag.hasAttribute("file") ? new File(startTag.getAttributeValue("file")) : null)
-                .with("uri", startTag.hasAttribute("uri") ? URI.create(startTag.getAttributeValue("uri")) : null)
+                .with("src", startTag.hasAttribute("src") ? startTag.getAttributeValue("src") : null)
                 .getBean();
     }
 }

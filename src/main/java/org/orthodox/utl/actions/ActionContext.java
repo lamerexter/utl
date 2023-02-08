@@ -3,6 +3,7 @@ package org.orthodox.utl.actions;
 import org.beanplanet.core.io.resource.Resource;
 
 import java.io.Writer;
+import java.util.Optional;
 
 public interface ActionContext {
     /**
@@ -17,4 +18,6 @@ public interface ActionContext {
     }
 
     TemplateBody parse(Action actionContext, Resource resource);
+
+    Optional<Resource> resolveResource(String resourceSpec);
 }

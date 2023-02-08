@@ -1,87 +1,46 @@
 package org.orthodox.utl.actions;
 
-import org.beanplanet.core.io.resource.FileResource;
+import lombok.Getter;
+import lombok.Setter;
 import org.beanplanet.core.io.resource.Resource;
-import org.beanplanet.core.io.resource.UriResource;
-import org.beanplanet.core.lang.Assert;
+import org.beanplanet.core.io.resource.ResourceNotFoundException;
 
-import java.io.File;
-import java.net.URI;
+import java.util.Optional;
 
+@Getter @Setter
 public class IncludeAction extends ActionBase {
-    private static final UriResolver DEFAULT_URI_RESOLVER = new DefaultUriResolver();
-    private File file;
-    private URI uri;
-    private UriResolver uriResolver = DEFAULT_URI_RESOLVER;
-
-    public File getFile() {
-        return file;
-    }
-
-    public void setFile(File file) {
-        this.file = file;
-    }
-
-    public URI getUri() {
-        return uri;
-    }
-
-    public void setUri(URI uri) {
-        this.uri = uri;
-    }
-
-    public UriResolver getUriResolver() {
-        return uriResolver;
-    }
-
-    public void setUriResolver(UriResolver uriResolver) {
-        this.uriResolver = uriResolver;
-    }
+    private String src;
 
     @Override
-    public void doAction(TemplateBody body, ActionContext context) {
-        Resource resourceToInclude = includeFromStream();
-        if (resourceToInclude != null) {
-            TemplateBody dynamicTemplateBody = context.parse(this, resourceToInclude);
-            dynamicTemplateBody.writeTo(context.getOut());
+    public void doAction(final TemplateBody body, final ActionContext context) {
+        if ( src != null ) {
+            TemplateBody dynamicTemplateBody = context.parse(this, includeFromStream(context).orElseThrow(() -> new ResourceNotFoundException("Included resource [" + src + "] not found")));
+            dynamicTemplateBody.writeTo(context);
         }
 
         if (body != null) {
-            body.writeTo(context.getOut());
+            body.writeTo(context);
         }
     }
 
-    private Resource includeFromStream() {
-        Assert.isTrue(uri != null
-                || file != null
-                || (uri == null && file == null), "A URI or file template resource must be specified or both must be null");
-        if (uri != null) {
-            if (uri.isAbsolute()) {
-                Resource resource = uriResolver.resolve(uri);
-                if (resource == null) {
-                    throw new TemplateActionException("Unable to resolve resource from given URI ["+uri+"]");
-                }
-                return resource;
-            }
+    private Optional<Resource> includeFromStream(final ActionContext context) {
+        return context.resolveResource(src)
+                .map(r -> {
+                    if ( r.isAbsolute() ) return r; // Already an absolute resource so no more resolution necessary
 
-            //----------------------------------------------------------------------------------------------------------
-            // Begin resolution of the relative resource uri through ancestors.
-            //----------------------------------------------------------------------------------------------------------
-            IncludeAction fromAction = this;
-            Resource resource = new UriResource(uri);
-            while ((fromAction = findAncestorOfType(fromAction, IncludeAction.class)) != null) {
-                Resource ancestorResource = fromAction.getFile() != null ? new FileResource(fromAction.getFile()) : new UriResource(fromAction.getUri());
-                resource = ancestorResource.resolve(resource.getPath());
-            }
+                    //--------------------------------------------------------------------------------------------------
+                    // Begin resolution of the relative resource uri through ancestors.
+                    //--------------------------------------------------------------------------------------------------
+                    IncludeAction fromAction = this;
+                    Resource fromResource = r;
+                    while ((fromAction = findAncestorOfType(fromAction, IncludeAction.class)) != null) {
+                        fromResource = context.resolveResource(fromAction.getSrc()).map(ancestorResource -> ancestorResource.resolve(r.getPath())).orElse(null);
+                    }
 
-            if (resource == null) {
-                throw new TemplateActionException("Unable to resolve relative resource from given URI ["+uri+"] through ancestry.");
-            }
-            return resource;
-        } else if (file != null){
-            return new FileResource(file);
-        }
-
-        return null;
+                    if (fromResource == null) {
+                        throw new TemplateActionException("Unable to resolve relative resource from given URI ["+src+"] through ancestry.");
+                    }
+                    return fromResource;
+                });
     }
 }

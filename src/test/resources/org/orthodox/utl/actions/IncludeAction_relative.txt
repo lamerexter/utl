@@ -1,3 +1,0 @@
-TopLevel-Prologue
-<utl:include uri='include-subdir1/some-content.txt' />
-TopLevel-Epilogue

@@ -1,5 +1,6 @@
 package org.orthodox.utl.model;
 
+import org.orthodox.utl.actions.ActionContext;
 import org.orthodox.utl.actions.TemplateBody;
 
 import java.io.Writer;
@@ -15,9 +16,9 @@ public class CompositeTemplateBody implements TemplateBody, Iterable<TemplateBod
     }
 
     @Override
-    public void writeTo(Writer writer) {
+    public void writeTo(ActionContext context) {
         for (TemplateBody component : components) {
-            component.writeTo(writer);
+            component.writeTo(context);
         }
     }
 

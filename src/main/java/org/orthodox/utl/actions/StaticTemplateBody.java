@@ -38,9 +38,9 @@ public class StaticTemplateBody implements TemplateBody {
     }
 
     @Override
-    public void writeTo(Writer writer) {
+    public void writeTo(ActionContext context) {
         try (Reader reader = getResource().getReader(getEncoding())){
-            IoUtil.transfer(reader, writer);
+            IoUtil.transfer(reader, context.getOut());
         } catch (IOException ioEx) {
             throw new IoException(ioEx);
         }
