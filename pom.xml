@@ -15,6 +15,7 @@
         <junit.version>5.3.1</junit.version>
         <mockito.version>2.23.4</mockito.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <universel.version>0.0.1-SNAPSHOT</universel.version>
     </properties>
 
     <dependencies>
@@ -29,6 +30,11 @@
             <groupId>org.beanplanet</groupId>
             <artifactId>beanplanet-core</artifactId>
             <version>${beanplanet.framework.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.orthodox</groupId>
+            <artifactId>universel</artifactId>
+            <version>${universel.version}</version>
         </dependency>
         <dependency>
             <groupId>org.beanplanet</groupId>
@@ -68,6 +74,20 @@
                     <target>${java.version}</target>
                     <encoding>UTF-8</encoding>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>3.2.1</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>com.helger.maven</groupId>

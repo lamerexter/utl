@@ -1,7 +1,21 @@
-options { 
-  IGNORE_CASE = true; 
-  DEBUG_TOKEN_MANAGER = false;
-} 
+//-------------------------------------------------------------------------------------------------
+// Parser options
+//-------------------------------------------------------------------------------------------------
+options
+{
+   // Parser options:
+   DEBUG_PARSER = false;                   // Whether the parser should output debugging information to diagnose problems.
+   DEBUG_LOOKAHEAD = false;                // Whether the parser should output debugging information when making lookahead decisions.
+   DEBUG_TOKEN_MANAGER = false;            // Whether the parser tokeniser should output debugging information to diagnose problems.
+   IGNORE_CASE = true;
+   LOOKAHEAD = 1;                          // The input stream symbol lookahead of the generated parser i.e. and LR(<nnn>) parser
+   JAVA_UNICODE_ESCAPE = false;            // Whether Java Unicode sequences are expanded prior to transmission to the tokeniser.
+   JDK_VERSION = "1.8";                    // The Java/JDK version of the parser to create
+   UNICODE_INPUT = true;                   // Use a unicode capable input stream.
+   FORCE_LA_CHECK = true;                  // Always carry out lookahead checking
+   COMMON_TOKEN_ACTION=false;              // Call the CommonTokenAction token manager method on each token (special token processing)
+}
+
 
 PARSER_BEGIN(TemplateParser)
 
@@ -17,7 +31,7 @@ import org.orthodox.utl.model.Node;
 import org.orthodox.utl.model.Sized;
 import org.orthodox.utl.model.Tag;
 import org.orthodox.utl.model.Template;
-import org.orthodox.utl.model.TemplatePrinter;
+import org.orthodox.utl.model.transforms.TemplatePrinter;
 import org.orthodox.utl.model.Text;
 
 import java.io.OutputStreamWriter;
@@ -83,8 +97,8 @@ PARSER_END(TemplateParser)
   <EOL:            ( " " | "\t" )* <NEWLINE> >
 | <TAG_START:      "<"       > : LexStartTag
 | <ENDTAG_START:   "</"      > : LexStartTag
-| <COMMENT_START:  "<!--"    > : LexComment
-| <DECL_START:     "<!"      > : LexDecl
+//| <COMMENT_START:  "<!--"    > : LexComment
+//| <DECL_START:     "<!"      > : LexDecl
 | <PCDATA:         ( ~["<", "\r", "\n"] )+ >
 }
 
@@ -92,7 +106,7 @@ PARSER_END(TemplateParser)
 <LexStartTag> TOKEN :
 {
   <TAG_NAME: <IDENTIFIER> > : LexInTag
-| <LST_ERROR: ~[]>          : DEFAULT
+  | <LST_ERROR: ~[]>          : DEFAULT
 }
 
 <LexInTag> SPECIAL_TOKEN :
@@ -135,21 +149,21 @@ PARSER_END(TemplateParser)
 | <LAV_ERROR: ~[]>
 }
 
-<LexComment> TOKEN :
-{
-  < COMMENT_END:  ("--" (" ")* ">" | "->") > : DEFAULT
-| < DASH:         "-" >
-| < COMMENT_EOL:  <NEWLINE> >
-| < COMMENT_WORD: ( (~[ "\n", "\r", "'", "\"", "-" ])+
-                    | <QUOTED_STRING_NB>
-                    | <QUOTE> ) >
-}
-
-<LexDecl> TOKEN :
-{
-  <DECL_ANY: ( <QUOTED_STRING_NB> | <QUOTE> | ~[ ">" ] )+ >
-| <DECL_END: ">" > : DEFAULT
-}
+//<LexComment> TOKEN :
+//{
+//  < COMMENT_END:  ("--" (" ")* ">" | "->") > : DEFAULT
+//| < DASH:         "-" >
+//| < COMMENT_EOL:  <NEWLINE> >
+//| < COMMENT_WORD: ( (~[ "\n", "\r", "'", "\"", "-" ])+
+//                    | <QUOTED_STRING_NB>
+//                    | <QUOTE> ) >
+//}
+//
+//<LexDecl> TOKEN :
+//{
+//  <DECL_ANY: ( <QUOTED_STRING_NB> | <QUOTE> | ~[ ">" ] )+ >
+//| <DECL_END: ">" > : DEFAULT
+//}
 
 /** Constructor. */
 Template Template() :
@@ -179,18 +193,17 @@ Node Element() :
   Token t;
 }
 {
-(
+  (
     LOOKAHEAD(2)
-         e = Tag()        { return e; }
-  |      e = EndTag()     { return e; }
-  |      e = CommentTag() { return e; }
-  |      e = DeclTag()    { return e; }
-  | LOOKAHEAD(2)
-             <TAG_START> t=<LST_ERROR>
-                          { return new Text("<" + t.image); }
-  |   t = <PCDATA>        { return new Text(t.image); }
-  |   t = <EOL>           { return new Newline(t.image); }
-)
+    e = Tag()        { return e; }
+    |
+    e = EndTag()     { return e; }
+//  |      e = CommentTag() { return e; }
+//  |      e = DeclTag()    { return e; }
+    |   <TAG_START>         { e = new Text("<"); } [ t=<LST_ERROR> { e = new Text(e.toString() + t.image); } ] { return e; }
+    |   t = <PCDATA>        { return new Text(t.image); }
+    |   t = <EOL>           { return new Newline(t.image); }
+  )
 }
 
 /** @return an attribute */
@@ -260,29 +273,29 @@ Node EndTag() :
   }
 }
 
-/** @return the start of a comment tag */
-Comment CommentTag() :
-{
-  Token t;
-  StringBuilder s = new StringBuilder("--");
-}
-{
-  <COMMENT_START>
-  ( t=<DASH> { s.append(t.image); }
-    | t=<COMMENT_EOL>  { s.append(t.image); }
-    | t=<COMMENT_WORD> { s.append(t.image); } )*
-  (<EOF> | <COMMENT_END>)
-  { return new Comment(s.append("--").toString()); }
-}
-
-/** @return the start of a declaration */
-Comment DeclTag() :
-{
-  Token t;
-}
-{
-  <DECL_START> t=<DECL_ANY> <DECL_END>
-  {
-    return new Comment(t.image);
-  }
-}
+///** @return the start of a comment tag */
+//Comment CommentTag() :
+//{
+//  Token t;
+//  StringBuilder s = new StringBuilder("--");
+//}
+//{
+//  <COMMENT_START>
+//  ( t=<DASH> { s.append(t.image); }
+//    | t=<COMMENT_EOL>  { s.append(t.image); }
+//    | t=<COMMENT_WORD> { s.append(t.image); } )*
+//  (<EOF> | <COMMENT_END>)
+//  { return new Comment(s.append("--").toString()); }
+//}
+//
+///** @return the start of a declaration */
+//Comment DeclTag() :
+//{
+//  Token t;
+//}
+//{
+//  <DECL_START> t=<DECL_ANY> <DECL_END>
+//  {
+//    return new Comment(t.image);
+//  }
+//}

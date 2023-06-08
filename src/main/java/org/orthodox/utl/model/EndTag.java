@@ -18,6 +18,10 @@ public class EndTag extends Node {
         return 3 + tagName.length();
     }
 
+    public String getTagName() {
+        return tagName;
+    }
+
     public String toString() {
         return "</" + tagName + ">";
     }

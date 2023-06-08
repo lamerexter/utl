@@ -1,0 +1,2 @@
+Lorem ipsum dolor sit amet${ intOperand1 + intOperand2 }, consectetur adipiscing elit,
+sed do eiusmod tempor incididunt ut${ intOperand2 * intOperand1 } labore et dolore magna aliqua.

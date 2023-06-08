@@ -1,7 +1,4 @@
 package org.orthodox.utl.actions;
 
-import java.io.Writer;
-
-public interface TemplateBody {
-    void writeTo(ActionContext context);
+public interface TemplateBody extends TemplateBodyElement, Iterable<TemplateBodyElement> {
 }

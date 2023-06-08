@@ -6,7 +6,7 @@ import java.util.Iterator;
 import java.util.List;
 
 /**
- * A sequence of HTML elements.
+ * A sequence of UTL document elements.
  */
 public class ElementSequence implements Iterable<Node> {
     private List<Node> elements;

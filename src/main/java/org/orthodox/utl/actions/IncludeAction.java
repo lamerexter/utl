@@ -7,14 +7,26 @@ import org.beanplanet.core.io.resource.ResourceNotFoundException;
 
 import java.util.Optional;
 
-@Getter @Setter
+import static org.beanplanet.core.util.StringUtil.notEmpty;
+
+@Getter
+@Setter
 public class IncludeAction extends ActionBase {
     private String src;
+    private String iSrc;
+    private TemplateBody body;
 
     @Override
-    public void doAction(final TemplateBody body, final ActionContext context) {
-        if ( src != null ) {
-            TemplateBody dynamicTemplateBody = context.parse(this, includeFromStream(context).orElseThrow(() -> new ResourceNotFoundException("Included resource [" + src + "] not found")));
+    public void doAction(final ActionContext context) {
+        String includeSrc = null;
+        if (src != null) {
+            includeSrc = src;
+        } else if ( iSrc != null ) {
+            includeSrc = context.evaluate(String.class, iSrc);
+        }
+
+        if (notEmpty(includeSrc)) {
+            TemplateBody dynamicTemplateBody = context.parse(this, includeFromStream(context, includeSrc).orElseThrow(() -> new ResourceNotFoundException("Included resource [" + (src != null ? src : iSrc) + "] not found")));
             dynamicTemplateBody.writeTo(context);
         }
 
@@ -23,10 +35,10 @@ public class IncludeAction extends ActionBase {
         }
     }
 
-    private Optional<Resource> includeFromStream(final ActionContext context) {
-        return context.resolveResource(src)
+    private Optional<Resource> includeFromStream(final ActionContext context, final String includeSrc) {
+        return context.resolveResource(includeSrc)
                 .map(r -> {
-                    if ( r.isAbsolute() ) return r; // Already an absolute resource so no more resolution necessary
+                    if (r.isAbsolute()) return r; // Already an absolute resource so no more resolution necessary
 
                     //--------------------------------------------------------------------------------------------------
                     // Begin resolution of the relative resource uri through ancestors.
@@ -38,7 +50,7 @@ public class IncludeAction extends ActionBase {
                     }
 
                     if (fromResource == null) {
-                        throw new TemplateActionException("Unable to resolve relative resource from given URI ["+src+"] through ancestry.");
+                        throw new TemplateActionException("Unable to resolve relative resource from given URI [" + includeSrc + "] through ancestry.");
                     }
                     return fromResource;
                 });

@@ -1,7 +1,9 @@
-package org.orthodox.utl.model;
+package org.orthodox.utl.model.transforms;
 
 import org.beanplanet.core.models.tree.AbstractTree;
 import org.beanplanet.core.models.tree.SwingTreeModelAdapter;
+import org.orthodox.utl.model.ElementSequence;
+import org.orthodox.utl.model.Template;
 import org.orthodox.utl.parser.TemplateParser;
 
 import javax.swing.*;

@@ -6,9 +6,8 @@ import org.beanplanet.core.io.resource.Resource;
 
 import java.io.IOException;
 import java.io.Reader;
-import java.io.Writer;
 
-public class StaticTemplateBody implements TemplateBody {
+public class StaticTemplateBody extends AbstractTemplateBodyElement {
     private Resource resource;
     private String encoding;
 

@@ -31,7 +31,6 @@ public interface Visitor {
         finish();
     }
 
-
     default void start() {
     }
 

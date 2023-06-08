@@ -5,11 +5,11 @@ public interface Action {
      * Performs the action. This is guaranteed to be called after any parent action has been set by the template engine
      * through a call to {@link #setParent(Action)}.
      *
-     * @param body the body of the tag which may be invoked zero or more times by the action and which will be null if
-     *             the action has no body.
+//     * @param body the body of the tag which may be invoked zero or more times by the action and which will be null if
+//     *             the action has no body.
      * @param context the context under which this action is being invoked.
      */
-    void doAction(TemplateBody body, ActionContext context);
+    void doAction(ActionContext context);
 
     /**
      * The parent action, if any, for collaboration purposes.
